@@ -1,49 +1,38 @@
 const express = require('express');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
 
 const app = express();
-const port = 3053;
+const port = process.env.PORT || 3053;
 
 app.use(cors());
 app.use(express.json());
 
-app.use(express.static('public'));
+// Simulated database for email usernames
+const emailUsernames = [];
 
-const smtpTransport = nodemailer.createTransport({
-  service: 'Gmail',
-  auth: {
-    user: 'your-email@gmail.com',
-    pass: 'your-email-password'
+// Create Email Username
+app.post('/emails', (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ message: 'Both username and password are required.' });
   }
+
+  // Check if the username already exists
+  if (emailUsernames.some(user => user.username === username)) {
+    return res.status(409).json({ message: 'Username already exists.' });
+  }
+
+  emailUsernames.push({ username, password });
+
+  res.status(201).json({ message: 'Email username created successfully.' });
 });
 
-app.post('/send-email', (req, res) => {
-  const { to, subject, text } = req.body;
-
-  const otp = generateOTP();
-  const mailOptions = {
-    from: 'your-email@gmail.com',
-    to: to,
-    subject: subject,
-    text: `${text} Your OTP: ${otp}`
-  };
-
-  smtpTransport.sendMail(mailOptions, (error, response) => {
-    if (error) {
-      console.log(error);
-      res.status(500).json({ message: 'Error sending email.' });
-    } else {
-      console.log('Email sent: ' + response.message);
-      res.json({ message: 'Email sent successfully.' });
-    }
-  });
+// List Email Usernames
+app.get('/emails', (req, res) => {
+  const usernames = emailUsernames.map(user => ({ username: user.username }));
+  res.json(usernames);
 });
-
-function generateOTP() {
-  return crypto.randomInt(100000, 1000000).toString();
-}
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
